@@ -12,7 +12,7 @@ description: >-
   gradient flow proof, lower bound, concentration inequality, optimization theory, induction on
   iterations, equivariance proof, score matching, diffusion SDE, flow matching, NTK, neural tangent
   kernel, Rademacher complexity, Wasserstein distance, optimal transport, scaling law, universal
-  approximation, loss landscape, PL condition, Lojasiewicz inequality, information bottleneck.
+  approximation, loss landscape, PL condition.
 ---
 
 # Mathematical Proof for ML

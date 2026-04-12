@@ -13,7 +13,7 @@ description: >-
   FSDP2, DTensor, tensor parallelism, pipeline parallelism, mixed precision, AMP, bf16, fp8,
   gradient checkpointing, FlashAttention, model profiling, OOM debugging, CUDA memory,
   inference optimization, model quantization, torchao, multimodal, cross-attention, vision
-  encoder, modality tokenization, temporal model, KV cache, speculative decoding.
+  encoder, temporal model.
 ---
 
 # PyTorch Model Design
