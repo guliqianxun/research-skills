@@ -144,7 +144,8 @@ research-skills/
     │   ├── lifecycle.md
     │   └── tool-contracts.md
     ├── scripts/
-    │   └── research_index.py
+    │   ├── research_index.py
+    │   └── test_research_index.py
     └── templates/
         ├── RESEARCH_ROADMAP.md
         ├── STUDY.md
