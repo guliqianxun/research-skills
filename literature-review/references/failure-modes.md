@@ -29,3 +29,5 @@ already built into `scripts/litreview.py` unless the row says otherwise.
 | "may" in the source became "会/将" in the review | Hedging lost in paraphrase or translation | Ledger statements keep the source's hedging; sentence rule 8 |
 | A percentage change appears that no paper reports | Reviewer computed it silently | Derived claims in the ledger; `check` requires the `本文据…计算` label |
 | Paper IDs change after adding one record, orphaning tiers | Unstable choice of the representative in near-duplicate groups | Deterministic sort; IDs matched by DOI, title key and other versions |
+| The review states conclusions or recommendations no paper made ("本文认为…", "由此可见…") | Reviewer judgement mixed with reported findings | Not allowed: `check` fails reviewer-judgement phrases and unattributed inference connectives |
+| "显著" used for "large" | Adjective instead of a number | `check` fails `显著/significant` without the test or level in the sentence |

@@ -813,6 +813,14 @@ RISKY = re.compile(r"众所周知|显而易见|显然|毋庸置疑|无疑|必然
                    r"groundbreaking|breakthrough", re.I)
 SIGNIF = re.compile(r"显著|significant", re.I)
 SIGNIF_OK = re.compile(r"p\s*[<≤]|置信|信度|检验|confidence|significance level|t-test|\btest\b", re.I)
+# the reviewer's own judgement is not allowed: report what the sources say, attributed
+REVIEWER_VIEW = re.compile(r"本文认为|本综述认为|笔者认为|我们认为|本文推测|本文判断|我们推测|本文建议|我们建议|"
+                           r"in (?:our|this review'?s) (?:view|assessment|opinion)|"
+                           r"\bwe (?:argue|believe|suggest|propose|recommend|speculate|conclude)\b|"
+                           r"this review (?:argues|suggests|proposes|recommends|concludes)", re.I)
+# inference connectives: allowed only when the sentence cites the paper that drew the inference
+INFERENCE = re.compile(r"由此可见|可以推断|据此推断|不难看出|这意味着|这说明|这表明|"
+                       r"this (?:implies|suggests|indicates|means)|it follows that", re.I)
 CAUSAL = re.compile(r"导致|引起|驱动|主导|决定了|造成|源于|归因于|\bcause[sd]?\b|\bdrive[ns]?\b|driven by|"
                     r"\bleads? to\b|attribut", re.I)
 
@@ -1010,7 +1018,13 @@ def stage_check(args):
             if m := RISKY.search(sent):
                 warns.append(f"[{section}] overstated wording '{m.group(0)}': {snippet}")
             if SIGNIF.search(sent) and not SIGNIF_OK.search(sent):
-                warns.append(f"[{section}] 'significant' used without a reported test: confirm the source tested it, or rephrase: {snippet}")
+                errors.append(f"[{section}] '显著/significant' without the reported test in the sentence (e.g. 95% 置信水平, "
+                              f"t 检验); otherwise give the number instead: {snippet}")
+            if m := REVIEWER_VIEW.search(sent):
+                errors.append(f"[{section}] reviewer's own judgement '{m.group(0)}' is not allowed; report the sources' "
+                              f"statements, attributed: {snippet}")
+            if (m := INFERENCE.search(sent)) and not ids_s:
+                errors.append(f"[{section}] inference '{m.group(0)}' without the citation of the paper that drew it: {snippet}")
             if CAUSAL.search(sent) and ctx_ids and not any(has_ft(p) for p in ctx_ids):
                 warns.append(f"[{section}] causal wording resting on abstracts only: {snippet}")
             for q in QTY_RE.finditer(sent):

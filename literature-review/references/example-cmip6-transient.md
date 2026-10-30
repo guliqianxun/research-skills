@@ -51,7 +51,9 @@ Example reasons from `tiers.tsv`: `evaluates NH storm track bias across CMIP6 mo
 
 ## Primer: diagnostics of transient activity in CMIP6 studies
 
-Use this to fill the "diagnostics and methods" section and to explain disagreements between papers.
+Use this to orient your reading and to know which parameters to record in notes. It is **not a citable source**:
+every parameter or statement in the review comes from the claims ledger, and a difference in methods is
+named as the cause of a disagreement only if a paper says so.
 
 | Paradigm | Diagnostic | Typical settings | Notes |
 |---|---|---|---|

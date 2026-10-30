@@ -4,6 +4,10 @@
 Your own background knowledge is not a source. A statement that cannot be traced to a row in the claims
 ledger does not go into the review. When the evidence is thin, say so; do not fill the gap.
 
+**The review contains no judgement of its own.** Every evaluative statement, interpretation, inference,
+explanation of a disagreement, recommendation or outlook item is attributed to the paper that made it. Studies
+are compared by placing their attributed findings side by side, not by drawing a conclusion over them.
+
 The protocol has seven steps. Steps marked **[user]** need the user's confirmation before you continue.
 
 ---
@@ -73,8 +77,9 @@ Rules:
    (AMIP vs coupled, sensitivity or perturbation experiments, causal discovery) and states the result as causal.
    Otherwise `与…相关/对应` (*associated with*). An interpretation offered by the authors is reported as theirs:
    `作者认为/推测` (*the authors suggest*).
-7. **Significance.** `显著/significant` only for statistical significance the source reports (test and level).
-   For size, give the number instead of an adjective.
+7. **Significance.** `显著/significant` only for statistical significance the source reports, and the sentence
+   states the test or level (`95% 置信水平`, `t 检验`, *p < 0.05*). For size, give the number instead of an
+   adjective. `check` fails `显著` without one.
 8. **Keep the source's hedging.** *may/might/suggest/likely* → `可能/提示/或许`; never upgrade *may* to `会`, or
    *suggest* to `表明/证明`.
 9. **Stay inside the study's scope.** Do not extend a finding beyond its models, region, season, period or
@@ -87,6 +92,12 @@ Rules:
     abstracts are not cited unless the user approved them as manual additions.
 13. **Translate claims, not interpretations.** When a sentence's meaning hinges on a word, keep the original in
     parentheses.
+14. **No reviewer judgement.** Not allowed: `本文认为、本综述认为、笔者认为、我们认为、本文推测、本文建议`,
+    *we argue/believe/suggest/propose/recommend, in our view, this review concludes*.
+    - Inference connectives (`由此可见、这表明、这说明、这意味着、可以推断`, *this implies/suggests*) are allowed only
+      when the sentence cites the paper that drew the inference.
+    - Allowed summary devices are mechanical: `多项研究（A；B）均发现…` (≥2 cited), `较为一致` (≥3 agreeing, none
+      disagreeing), or listing the studies on each side of a disagreement.
 
 Examples (illustrative; the first uses figures reported in the CMIP6 example review, `P0xx` are placeholders):
 
@@ -104,12 +115,11 @@ Examples (illustrative; the first uses figures reported in the CMIP6 example rev
 - **Diagnostics/methods**: parameters as used in the reviewed papers (ledger), not textbook defaults.
 - **Mechanisms**: each mechanism is paired with the experiment that supports it; interpretations are labelled as
   the authors'.
-- **Uncertainty and outlook** contain only:
-  (a) limitations and future work stated by the sources (cited), and
-  (b) gaps visible in the evidence base ("本组文献中没有研究评估…"), labelled `本文认为` and citing the claims
-  they rest on.
-  No research agenda from general knowledge.
-- **Synthesis across studies** is labelled (`综合 A、B 的结果，本文认为…`) and cites every study it combines.
+- **Uncertainty and outlook** contain only limitations and future work stated by the sources, each attributed
+  and cited (`Moreno-Chamarro 等（2025，★P0xx）指出…`). No gaps, priorities or research agenda of your own.
+- **Comparison across studies** places attributed findings side by side. A reason for a disagreement appears only
+  if a source gives it; otherwise state that the studies differ and how (method, period, models), without
+  explaining why.
 
 ## W5. Figures
 
@@ -131,23 +141,26 @@ Examples (illustrative; the first uses figures reported in the CMIP6 example rev
 ## W7. Audit loop **[user]**
 
 1. `check` until zero errors.
-2. Resolve each warning: overstated wording, `significant` without a test, causal wording resting on abstracts,
+2. Resolve each warning: overstated wording, causal wording resting on abstracts,
    numbers cited only at paragraph level, grey literature, uncited-by-declaration paragraphs.
 3. Read the draft sentence by sentence and name the claim_id(s) behind each finding. Delete or rewrite any
    sentence that has none.
-4. The user reviews the abstract, the conclusions and every `本文认为` statement before export.
+4. The user reviews the abstract and the conclusions before export.
 
 ## What `check` enforces and what it cannot
 
 | Enforced (error) | Flagged (warning) | Your responsibility |
 |---|---|---|
-| Missing claims ledger | `显著/significant` without a reported test | Paraphrase fidelity and hedging (rule 8) |
-| Ledger: unknown paper, `fulltext` without PDF/note/location, derived claim without sources | Overstated or promotional words | Scope (rule 9) and evidence-strength wording (rule 5) |
+| Missing claims ledger | Overstated or promotional words | Paraphrase fidelity and hedging (rule 8) |
+| Ledger: unknown paper, `fulltext` without PDF/note/location, derived claim without sources | — | Scope (rule 9) and evidence-strength wording (rule 5) |
 | Cited ID with no ledger claim | Causal wording supported only by abstracts | Causality backed by an attribution design (rule 6) |
 | Paragraph without citation (unless `no-cite`) | Numbers cited only at paragraph level | Figure captions faithful to the source |
 | Number not in the ledger claims of the cited papers | Paragraphs marked `no-cite` | Disagreements reported, not averaged away |
-| Derived number without `本文据…计算` | Counts not found in `stats.json` | Outlook limited to sourced or evidence-visible gaps |
+| Derived number without `本文据…计算` | Counts not found in `stats.json` | Outlook limited to limitations stated by the sources |
 | Consensus wording with <2 citations in the sentence | Cited preprints, theses, abstracts | — |
 | Author–year citation without an ID | Selected papers never cited | — |
 | Abstract/Conclusions citing evidence absent from the body | Full-text papers without notes | — |
+| `显著/significant` without the test or level in the sentence | — | Evaluative words without a reviewer-judgement phrase (e.g. "改进有限") still need a source |
+| Reviewer judgement (`本文认为`, *we argue*, …) | — | — |
+| Inference connective (`由此可见`, `这表明`, …) without a citation in the sentence | — | — |
 | ★ without full text or on a conference abstract; missing images; IDs outside the set | — | — |

@@ -25,7 +25,8 @@
 ### 3.2 <Region / hemisphere B>
 ### 3.3 <Intensity / extremes>
 ### 3.4 <Consistency between metrics>
-<!-- Per finding: models (N), period, season, reference data, metric. Disagreements reported side by side. -->
+<!-- Per finding: models (N), period, season, reference data, metric. Disagreements reported side by side;
+     a reason only if a source gives one. -->
 
 ## 4. Causes of systematic bias
 ### 4.1 <Mechanism 1>
@@ -46,8 +47,8 @@
      disagreeing in the set. -->
 
 ## 7. Uncertainties, limitations and outlook
-<!-- Only (a) limitations and future work stated by the sources, cited, and (b) gaps visible in the evidence
-     base, labelled 本文认为 and citing the claims they rest on. No agenda from general knowledge. -->
+<!-- Only limitations and future work stated by the sources, each attributed and cited. No gaps, priorities
+     or agenda of your own; no 本文认为. -->
 
 ## 8. Conclusions
 <!-- Restates body findings with the same IDs. Nothing new. Confirmed by the user. -->

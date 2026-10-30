@@ -8,7 +8,8 @@ the only place numbers enter the review from, so record them in a form you can c
 - **Setup**: models (count and which), experiments (historical, AMIP, SSPs, HighResMIP…), period, reference
   data (reanalysis), season, region, resolution groups.
 - **Diagnostics with parameters**: e.g. "2–6-day band-pass MSLP variance", "TRACK on T42 ξ850, lifetime ≥48 h,
-  displacement ≥1000 km". Parameter differences explain disagreements between papers.
+  displacement ≥1000 km". When papers disagree, the review can state that their parameters differ; it names
+  the difference as the cause only if a source does.
 - **Findings**: one bullet per finding, each with a number and its location: `RMSE 0.389 hPa (Table 2, p. 9)`.
   Separate *what they measured* from *what they conclude*.
 - **Figures worth showing**: figure number, page PNG, one-line takeaway.
@@ -45,7 +46,8 @@ Organise by question, not paper by paper. For a model-evaluation topic, the outl
 6. Causes of bias, organised by mechanism, each with the experiment that supports it.
 7. Change relative to the previous generation and multi-model spread.
 8. Future projections: robust vs uncertain signals, forced vs internal variability.
-9. Uncertainties, limitations and outlook: compensating errors, resolution vs tuning, method dependence.
+9. Uncertainties, limitations and outlook, as stated by the sources (e.g. compensating errors, resolution vs
+   tuning, method dependence), each attributed.
 10. Conclusions.
 11. References (from `references_by_author.md`) and a reproducibility appendix.
 

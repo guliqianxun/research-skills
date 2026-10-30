@@ -57,7 +57,7 @@ Settle these with the user first; they become `topic.json` (`init` creates it fr
 | Bibliography | `biblio` | `06_review/references*.md`, `abstracts_digest.md`, `core_papers.csv/.xlsx`, final `stats.json` | — |
 | Ledger | **you** | `06_review/claims.tsv` from notes and abstracts | Outline + headline findings confirmed by the user |
 | Write | **you** | `06_review/<title>.md` by `references/writing-protocol.md` | — |
-| Audit | `check` | errors / warnings, exit 1 on errors | Zero errors; warnings resolved; user reviews abstract, conclusions, `本文认为` |
+| Audit | `check` | errors / warnings, exit 1 on errors | Zero errors; warnings resolved; user reviews abstract and conclusions |
 
 Rerunning is safe: paper IDs (`P001`…) are stable across reruns, so tiers and notes stay attached.
 Details, file columns and tuning advice: `references/pipeline.md`.
@@ -96,14 +96,16 @@ Writing is the step where an AI is most tempted to fill gaps from general knowle
 3. **Draft by the sentence rules**:
    - Cite in the sentence that states the finding; copy numbers exactly, with units and qualifiers.
    - Wording must match evidence strength (one study ≠ "研究表明"; consensus needs ≥2 cited studies).
-   - Causal verbs need an attribution design; `显著/significant` needs a reported test.
+   - Causal verbs need an attribution design; `显著/significant` needs the test or level in the sentence.
+   - **No judgement of your own**: no `本文认为` / *we argue*; inferences (`由此可见`, `这表明`) only with the
+     citation of the paper that drew them; disagreements shown side by side, explained only if a source does.
    - Keep the source's hedging; stay inside each study's scope; no promotional words.
-4. **Abstract and conclusions add nothing new.** Outlook contains only gaps stated by sources or visible
-   in the evidence base, labelled `本文认为`.
+4. **Abstract and conclusions add nothing new.** Outlook contains only limitations and future work stated
+   by the sources, attributed.
 5. **Never cite from memory.** References outside the set go through `manual_additions.csv` after the
    user approves them.
 6. **Audit**: run `check` to zero errors, resolve every warning, trace each sentence to a claim_id. The
-   user then reviews the abstract, conclusions and every `本文认为` statement.
+   user then reviews the abstract and conclusions.
 
 Structure: `templates/review_outline.md`. Notes, figures and export: `references/reading-and-writing.md`.
 Export with `pandoc review.md -o review.docx --resource-path=06_review`; for journal styling build a reference
