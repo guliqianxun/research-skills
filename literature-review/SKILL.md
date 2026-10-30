@@ -55,8 +55,9 @@ Settle these with the user first; they become `topic.json` (`init` creates it fr
 | Extract | `extract` | `04_notes/<ID>.fulltext.txt`, `05_figures/*.png`, `figures_index.csv` | — |
 | Read | **you**, per full-text paper | `04_notes/<ID>.md` from `templates/paper_note.md` | Every full-text paper has a note |
 | Bibliography | `biblio` | `06_review/references*.md`, `abstracts_digest.md`, `core_papers.csv/.xlsx`, final `stats.json` | — |
-| Write | **you** | `06_review/<title>.md` from `templates/review_outline.md` | — |
-| Audit | `check` | errors / warnings, exit 1 on errors | Zero errors; every warning resolved or explained |
+| Ledger | **you** | `06_review/claims.tsv` from notes and abstracts | Outline + headline findings confirmed by the user |
+| Write | **you** | `06_review/<title>.md` by `references/writing-protocol.md` | — |
+| Audit | `check` | errors / warnings, exit 1 on errors | Zero errors; warnings resolved; user reviews abstract, conclusions, `本文认为` |
 
 Rerunning is safe: paper IDs (`P001`…) are stable across reruns, so tiers and notes stay attached.
 Details, file columns and tuning advice: `references/pipeline.md`.
@@ -83,21 +84,30 @@ For each paper with a PDF, read `04_notes/<ID>.fulltext.txt` and look at its fig
 findings **with figure/table/page**, mechanisms claimed, limitations, and which review section it feeds.
 Papers without full text are used through `02_metadata/abstracts_digest.md` only.
 
-## 4. Writing
+## 4. Writing (strict protocol)
 
-Follow `templates/review_outline.md` and `references/reading-and-writing.md`. The essentials:
+Writing is the step where an AI is most tempted to fill gaps from general knowledge. Don't. **Read
+`references/writing-protocol.md` before drafting and follow it step by step.** In short:
 
-- Organise by question (methods → present-day fidelity → causes of bias → generational change →
-  projections → uncertainty), not paper by paper.
-- Cite as `Author Year（ID）`; mark ★ only for papers you read in full and noted.
-- Every number comes from a note (figure/table/page) or an abstract; say which when it matters.
-- Embed only figures you can attribute: caption = what it shows + `来源/Source: Author (Year), ID Fig. N`.
-- Counts in the text (papers, full texts) come from `02_metadata/stats.json`.
-- Label preprints and theses in the text; never use a conference abstract as primary evidence.
-- End with a reproducibility appendix: databases, query, search date, funnel counts, file map.
+1. **Claims ledger first.** Record every finding you will use in `06_review/claims.tsv`
+   (`templates/claims.tsv`): paper ID, `fulltext` / `abstract` / `derived`, location (Fig./Table/page),
+   faithful statement with its qualifiers and hedging, and the numbers. Nothing outside the ledger goes in.
+2. **Plan from the ledger and get the user's confirmation** of the outline and headline findings.
+3. **Draft by the sentence rules**:
+   - Cite in the sentence that states the finding; copy numbers exactly, with units and qualifiers.
+   - Wording must match evidence strength (one study ≠ "研究表明"; consensus needs ≥2 cited studies).
+   - Causal verbs need an attribution design; `显著/significant` needs a reported test.
+   - Keep the source's hedging; stay inside each study's scope; no promotional words.
+4. **Abstract and conclusions add nothing new.** Outlook contains only gaps stated by sources or visible
+   in the evidence base, labelled `本文认为`.
+5. **Never cite from memory.** References outside the set go through `manual_additions.csv` after the
+   user approves them.
+6. **Audit**: run `check` to zero errors, resolve every warning, trace each sentence to a claim_id. The
+   user then reviews the abstract, conclusions and every `本文认为` statement.
 
-Then run `check`, fix every error, and export: `pandoc review.md -o review.docx --resource-path=06_review`
-(for journal styling, build a reference doc with the `latex-to-word` skill's `make_reference_doc.py`).
+Structure: `templates/review_outline.md`. Notes, figures and export: `references/reading-and-writing.md`.
+Export with `pandoc review.md -o review.docx --resource-path=06_review`; for journal styling build a reference
+doc with the `latex-to-word` skill's `make_reference_doc.py`.
 
 ## Hard rules
 
@@ -105,19 +115,21 @@ Then run `check`, fix every error, and export: `pandoc review.md -o review.docx 
 2. **Open access only.** Download what Unpaywall / OpenAlex / Semantic Scholar / the publisher list as
    open; send the rest to the user via `manual_fetch.md`. Do not spoof browser user agents or bypass paywalls.
 3. **★ means read.** A ★ claim requires a full-text PDF *and* a note. A conference abstract is never ★.
-4. **Numbers are traceable.** No figure, percentage or count in the review without a source in the notes,
-   the abstract digest or `stats.json`.
-5. **Preserve the record.** Keep raw retrieval JSON, `search_log.json`, `tiers.tsv` and the download log;
+4. **Nothing without a ledger claim.** Every finding and number in the review traces to a row in
+   `claims.tsv` (from a note or an abstract), and every count to `stats.json`. Computed numbers are labelled.
+5. **No citations from memory.** Only papers in the selected set or user-approved manual additions.
+6. **Preserve the record.** Keep raw retrieval JSON, `search_log.json`, `tiers.tsv` and the download log;
    they are the review's method section.
-6. **Never renumber IDs by hand.** IDs link tiers, notes, figures and citations.
+7. **Never renumber IDs by hand.** IDs link tiers, notes, figures and citations.
 
 ## Files to read on demand
 
 | File | When |
 |---|---|
 | `references/pipeline.md` | Running or tuning any script stage; file formats |
-| `references/reading-and-writing.md` | Writing notes, choosing figures, drafting and auditing the review |
+| `references/writing-protocol.md` | **Before and while drafting**: claims ledger, sentence and section rules, audit |
+| `references/reading-and-writing.md` | Writing reading notes, choosing figures, review structure, export |
 | `references/failure-modes.md` | Something looks wrong: symptom → cause → fix |
 | `references/example-cmip6-transient.md` | Worked example; also a primer on transient-activity diagnostics for CMIP6 reviews |
 | `templates/topic.example.json` | Starting config (the CMIP6 example) |
-| `templates/paper_note.md`, `templates/review_outline.md` | Reading and writing |
+| `templates/paper_note.md`, `templates/claims.tsv`, `templates/review_outline.md` | Reading, ledger, writing |

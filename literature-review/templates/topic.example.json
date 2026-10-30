@@ -46,5 +46,6 @@
 
   "select": {"target_min": 45, "max": 60, "exclude_types": ["conference_abstract"]},
   "extract": {"dpi": 130, "max_pages_per_paper": 12},
+  "writing": {"require_ledger": true, "skip_headings": "参考文献|References|附[:：录]|Appendix|致谢|Acknowledg"},
   "pub_type_rules": {}
 }

@@ -306,6 +306,18 @@ def load_records(cfg):
                     cited_by_count=w.get("citationCount"), is_oa=w.get("isOpenAccess"),
                     oa_url=(w.get("openAccessPdf") or {}).get("url") or None,
                     type_hint=" ".join(w.get("publicationTypes") or []), retracted=False))
+    # papers the user explicitly approved for citation (e.g. the original method paper outside the
+    # search window); they bypass scoring and screening but must carry a reason and a verified DOI
+    p = fp(cfg, "02_metadata", "manual_additions.csv")
+    if os.path.exists(p):
+        for _, m in pd.read_csv(p, encoding="utf-8-sig", dtype=str, keep_default_na=False).iterrows():
+            if not m.get("reason"):
+                sys.exit(f"manual_additions.csv: '{m.get('title')}' has no reason")
+            rows.append(dict(
+                source="manual", title=m["title"], abstract=m.get("abstract", ""), authors=m["authors"],
+                year=int(m["year"]) if m.get("year") else None, venue=m.get("venue", ""),
+                doi=m["doi"].lower() or None, cited_by_count=None, is_oa=None, oa_url=None,
+                type_hint="journal-article", retracted=False, manual_reason=m["reason"]))
     return rows
 
 
@@ -317,6 +329,11 @@ def score_row(row, cfg, rx):
     ctx = [k for k, r in rx["context"].items() if r.search(text)]
     s = w["anchor"] * has_anchor + w["core"] * len(core) + w["context"] * len(ctx)
     return s, "|".join(core + ctx), has_anchor and len(core) >= 1
+
+
+def n_cites(x):
+    v = pd.to_numeric(x, errors="coerce")
+    return 0 if pd.isna(v) else int(v)
 
 
 def first_nonempty(s):
@@ -335,6 +352,7 @@ def stage_curate(args):
     if df.empty:
         sys.exit("no records in 01_retrieval/: run `search` first")
     n_raw = len(df)
+    df["manual_reason"] = df["manual_reason"].fillna("") if "manual_reason" in df else ""
     for c in ("title", "abstract", "venue", "authors"):
         df[c] = df[c].map(clean_text)
     junk = re.compile(cfg.get("junk_title_regex",
@@ -347,11 +365,13 @@ def stage_curate(args):
     df["key"] = df["doi"].fillna("")
     df.loc[df["key"] == "", "key"] = df.loc[df["key"] == "", "title"].map(norm_title)
     df = df[df["key"] != ""]
-    df = df.sort_values("abstract", key=lambda s: s.str.len(), ascending=False)
+    df["_alen"] = df["abstract"].str.len()
+    df = df.sort_values(["_alen", "source", "key"], ascending=[False, True, True], kind="mergesort")
     agg = df.groupby("key").agg(
         oa_url=("oa_url", first_nonempty), is_oa=("is_oa", any_oa), cited_by_count=("cited_by_count", "max"),
         sources=("source", lambda s: "|".join(sorted(set(s)))),
-        type_hint=("type_hint", lambda s: " ".join(sorted({x for x in s if x}))))
+        type_hint=("type_hint", lambda s: " ".join(sorted({x for x in s if x}))),
+        manual_reason=("manual_reason", first_nonempty))
     df = df.drop_duplicates("key").set_index("key")
     for c in agg.columns:
         df[c] = agg[c]
@@ -365,12 +385,13 @@ def stage_curate(args):
     df["_nt"] = df["title"].map(norm_title)
     df["_rank"] = df["pub_type"].map(TYPE_RANK)
     df["_cite"] = pd.to_numeric(df["cited_by_count"], errors="coerce").fillna(0)
-    df = df.sort_values(["_rank", "_cite"], ascending=[True, False])
+    df = df.sort_values(["_rank", "_cite", "key"], ascending=[True, False, True], kind="mergesort")
     alt = df.groupby("_nt").agg(
         other_versions=("doi", lambda s: "|".join(x for x in list(s)[1:] if isinstance(x, str))),
-        alt_urls=("oa_url", lambda s: "|".join(x for x in list(s)[1:] if isinstance(x, str) and x)))
+        alt_urls=("oa_url", lambda s: "|".join(x for x in list(s)[1:] if isinstance(x, str) and x)),
+        manual_reason=("manual_reason", first_nonempty))
     df = df.drop_duplicates("_nt").set_index("_nt")
-    df[["other_versions", "alt_urls"]] = alt
+    df[["other_versions", "alt_urls", "manual_reason"]] = alt
     df = df.reset_index()
     n_neardup = len(df)
 
@@ -384,25 +405,31 @@ def stage_curate(args):
     known = {}
     if os.path.exists(raw_path):
         old = pd.read_csv(raw_path, encoding="utf-8-sig", dtype=str, keep_default_na=False)
-        for _, r in old.iterrows():
-            known[r["doi"].lower() if r.get("doi") else norm_title(r["title"])] = r["id"]
-    df = df.sort_values(["relevance_score", "_cite"], ascending=False).reset_index(drop=True)
+        for _, r in old.iterrows():  # every DOI and the title key of a work point to its ID
+            for k in [r["doi"].lower(), norm_title(r["title"])] + str(r.get("other_versions", "")).lower().split("|"):
+                if k:
+                    known.setdefault(k, r["id"])
+    df = df.sort_values(["relevance_score", "_cite", "key"], ascending=[False, False, True],
+                        kind="mergesort").reset_index(drop=True)
     nxt = max([int(i[1:]) for i in known.values()] + [0]) + 1
     ids, used = [], set()
-    for k in df["key"]:
-        pid = known.get(k)
-        if not pid or pid in used:
+    for _, r in df.iterrows():
+        keys = [r["key"], r["_nt"]] + [x.lower() for x in (r["other_versions"] if isinstance(r["other_versions"], str) else "").split("|") if x]
+        pid = next((known[k] for k in keys if k in known and known[k] not in used), None)
+        if not pid:
             pid, nxt = "P%03d" % nxt, nxt + 1
         used.add(pid)
         ids.append(pid)
     df.insert(0, "id", ids)
 
     cols = ["id", "title", "authors", "year", "venue", "doi", "pub_type", "cited_by_count", "is_oa", "oa_url",
-            "alt_urls", "other_versions", "sources", "relevance_score", "theme_tags", "_core", "abstract"]
+            "alt_urls", "other_versions", "sources", "relevance_score", "theme_tags", "_core", "manual_reason",
+            "abstract"]
     df = df[cols]
     write_csv(df, raw_path)
     min_score = cfg.get("curated_min_score", 7)
-    core = df[df["_core"] & (df["relevance_score"] >= min_score)]
+    manual = df["manual_reason"].fillna("").astype(str).str.len() > 0
+    core = df[(df["_core"] & (df["relevance_score"] >= min_score)) | manual]
     write_csv(core, fp(cfg, "02_metadata", "papers_curated.csv"))
     update_stats(cfg, raw_records=n_raw, after_junk_filter=n_junk, unique_records=n_unique,
                  after_near_duplicates=n_neardup, curated=len(core),
@@ -434,7 +461,8 @@ def stage_batches(args):
     os.makedirs(sdir, exist_ok=True)
     cur = read_csv(fp(cfg, "02_metadata", "papers_curated.csv"))
     done = read_tiers(cfg)
-    todo = cur[~cur["id"].isin(done)]
+    manual = cur["manual_reason"].fillna("").astype(str).str.len() > 0 if "manual_reason" in cur else cur["id"].isna()
+    todo = cur[~cur["id"].isin(done) & ~manual]
     scr = cfg.get("screen", {})
     rubric = scr.get("rubric", {})
     with open(os.path.join(sdir, "RUBRIC.md"), "w", encoding="utf-8") as f:
@@ -454,12 +482,12 @@ def stage_batches(args):
         path = os.path.join(sdir, f"batch_{n0 + b:02d}.txt")
         with open(path, "w", encoding="utf-8") as f:
             for _, r in chunk.iterrows():
-                cites = int(pd.to_numeric(r["cited_by_count"], errors="coerce") or 0)
+                cites = n_cites(r["cited_by_count"])
                 f.write(f"ID: {r['id']}\nTITLE: {r['title']}\n"
                         f"YEAR: {r['year']} | CITED: {cites} | OA: {r['is_oa']} | TYPE: {r['pub_type']} | "
                         f"TAGS: {r['theme_tags']}\nABSTRACT: {str(r['abstract'])[:1500]}\n---\n")
         files.append(os.path.basename(path))
-    print(f"{len(cur) - len(todo)} of {len(cur)} curated already tiered; {len(todo)} to screen in {len(files)} batch(es): {', '.join(files) or '-'}")
+    print(f"{len(cur) - len(todo) - int(manual.sum())} of {len(cur)} curated already tiered, {int(manual.sum())} manual; {len(todo)} to screen in {len(files)} batch(es): {', '.join(files) or '-'}")
 
 
 def stage_select(args):
@@ -467,24 +495,28 @@ def stage_select(args):
     sc = {"target_min": 45, "max": 60, "exclude_types": ["conference_abstract"], **cfg.get("select", {})}
     df = read_csv(fp(cfg, "02_metadata", "papers_curated.csv"))
     tiers = read_tiers(cfg)
-    missing = sorted(set(df["id"]) - set(tiers))
+    manual = df["manual_reason"].fillna("").astype(str).str.len() > 0 if "manual_reason" in df else df["id"].isna()
+    missing = sorted(set(df.loc[~manual, "id"]) - set(tiers))
     if missing and not args.allow_untiered:
         sys.exit(f"{len(missing)} curated papers have no tier (e.g. {', '.join(missing[:8])}). "
                  f"Run `batches`, screen them, or pass --allow-untiered to treat them as C.")
     df["tier"] = df["id"].map(lambda i: tiers.get(i, ("C", ""))[0])
     df["screen_reason"] = df["id"].map(lambda i: tiers.get(i, ("", "untiered"))[1])
+    df.loc[manual, "tier"] = "M"
+    df.loc[manual, "screen_reason"] = "manual addition: " + df.loc[manual, "manual_reason"].astype(str)
     tier_counts = df["tier"].value_counts().to_dict()
-    pool = df[~df["pub_type"].isin(sc["exclude_types"])].copy()
+    pool = df[~df["pub_type"].isin(sc["exclude_types"]) & ~manual].copy()
     pool["_cite"] = pd.to_numeric(pool["cited_by_count"], errors="coerce").fillna(0)
     pool = pool.sort_values(["relevance_score", "_cite"], ascending=False)
     sel = pool[pool["tier"] == "A"]
     if len(sel) < sc["target_min"]:
         sel = pd.concat([sel, pool[pool["tier"] == "B"].head(sc["target_min"] - len(sel))])
-    sel = sel.head(sc["max"]).drop(columns="_cite").reset_index(drop=True)
+    sel = pd.concat([sel.head(sc["max"]).drop(columns="_cite"), df[manual]]).reset_index(drop=True)
     write_csv(sel, fp(cfg, "02_metadata", "papers_selected.csv"))
     excluded = df[df["pub_type"].isin(sc["exclude_types"]) & df["tier"].isin(["A", "B"])]
     update_stats(cfg, tiers=tier_counts, selected=len(sel), selected_by_type=sel["pub_type"].value_counts().to_dict(),
-                 selected_by_tier=sel["tier"].value_counts().to_dict(), excluded_by_type_AB=len(excluded))
+                 selected_by_tier=sel["tier"].value_counts().to_dict(), excluded_by_type_AB=len(excluded),
+                 manual_additions=int(manual.sum()))
     print("tiers:", tier_counts)
     print(f"selected {len(sel)} | by tier {sel['tier'].value_counts().to_dict()} | "
           f"by type {sel['pub_type'].value_counts().to_dict()}")
@@ -716,7 +748,7 @@ def stage_biblio(args):
     lines = [f"# Reference list by ID ({n} papers; ★ full text {nf}, ☆ title + abstract {n - nf})\n"]
     for _, r in sel.sort_values("id").iterrows():
         star, c = cite_line(r)
-        lines.append(f"- {star} **{r['id']}** {c} [cited {int(pd.to_numeric(r['cited_by_count'], errors='coerce') or 0)}]")
+        lines.append(f"- {star} **{r['id']}** {c} [cited {n_cites(r['cited_by_count'])}]")
     with open(fp(cfg, "06_review", "references.md"), "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
 
@@ -763,10 +795,130 @@ def stage_biblio(args):
 # ---------------------------------------------------------------- stage: check
 
 COUNT_RE = re.compile(r"(\d+)\s*(?:篇|papers?\b|articles?\b|studies\b)", re.I)
+# a number followed by a physical unit, percent or count word: these must be traceable to the ledger
+QTY_RE = re.compile(r"(?<![\w.])[-−+±]?(\d+(?:\.\d+)?)(?=\s*(?:%|％|‰|hPa|Pa\b|°|℃|K\b|km|m\s*s|m/s|mm|cm|kg|W\s*m|"
+                    r"天|日|小时|h\b|个|倍|SYPD|bergeron))")
+NUM_RE = re.compile(r"\d+(?:\.\d+)?")
+NO_CITE = re.compile(r"<!--\s*no-cite:\s*(.*?)\s*-->")
+LOCATION_RE = re.compile(r"Fig|Table|\bp\.|pp\.|page|Sec|§|Eq|图|表|页|节|式", re.I)
+DERIVED_LABEL = re.compile(r"本文(?:据|计算|估算|统计)|本综述(?:据|计算|统计)|computed (?:here|in this review)|"
+                           r"our calculation|this review'?s calculation", re.I)
+AUTHOR_YEAR = re.compile(r"\b[A-Z][a-z]+(?:[-'][A-Za-z]+)*(?:\s*(?:et al\.?|等|&|and)\s*(?:[A-Z][a-z]+)?)?"
+                         r"\s*[（(,，]?\s*(?:19|20)\d{2}[a-z]?\b")
+CONSENSUS = re.compile(r"多项研究|多数研究|大量研究|诸多研究|众多研究|普遍认为|广泛认为|研究普遍|学界共识|"
+                       r"several studies|many studies|most studies|numerous studies|widely (?:accepted|agreed)|"
+                       r"there is (?:a )?consensus", re.I)
+RISKY = re.compile(r"众所周知|显而易见|显然|毋庸置疑|无疑|必然|首次|突破性|革命性|彻底|完全解决|证明了|证实了|"
+                   r"it is well known|\bclearly\b|undoubtedly|obviously|\bproves?\b|for the first time|"
+                   r"groundbreaking|breakthrough", re.I)
+SIGNIF = re.compile(r"显著|significant", re.I)
+SIGNIF_OK = re.compile(r"p\s*[<≤]|置信|信度|检验|confidence|significance level|t-test|\btest\b", re.I)
+CAUSAL = re.compile(r"导致|引起|驱动|主导|决定了|造成|源于|归因于|\bcause[sd]?\b|\bdrive[ns]?\b|driven by|"
+                    r"\bleads? to\b|attribut", re.I)
+
+
+def review_units(text, skip_rx):
+    """-> [(section, text, inherited_ids)] for every unit that must carry a citation: paragraph, list item,
+    table row, caption. List items inherit the IDs of a lead-in paragraph that ends with a colon.
+    Headings, blockquotes (scope box), images and skipped sections (references, appendix) are left out."""
+    text = re.sub(r"<!--(?!\s*no-cite:).*?-->", "", text, flags=re.S)  # template guidance, not content
+    units, cur, section, skip, table_row = [], [], "", False, 0
+    state = {"lead_ids": set()}
+
+    def flush(is_item):
+        if cur and not skip:
+            t = " ".join(cur)
+            inherited = state["lead_ids"] if is_item else set()
+            units.append((section, t, inherited))
+            if not is_item:
+                state["lead_ids"] = set(ID_RE.findall(t)) if re.search(r"[:：]\s*$", t) else set()
+        cur.clear()
+
+    item = False
+    for line in text.splitlines():
+        s = line.strip()
+        if s.startswith("#"):
+            flush(item); item = False; state["lead_ids"] = set()
+            section = s.lstrip("#").strip(); skip = bool(skip_rx.search(section)); continue
+        if s.startswith("|"):
+            flush(item); item = False; table_row += 1
+            if table_row > 2 and not skip:  # header and separator rows carry no claims
+                units.append((section, s, set()))
+            continue
+        table_row = 0
+        if not s or re.fullmatch(r"[-*_]{3,}", s) or s.startswith((">", "![")):
+            flush(item); continue
+        if re.match(r"([-*+]|\d+[.)、])\s", s):
+            flush(item); item = True
+        elif not cur:
+            item = False
+        cur.append(s)
+    flush(item)
+    return units
+
+
+def split_sentences(t):
+    t = t.replace("et al.", "et al§")
+    parts = re.split(r"(?<=[。！？；])|(?<=[.!?;])\s+(?=[A-Z（(])", t)
+    return [p.replace("et al§", "et al.").strip() for p in parts if p and p.strip()]
+
+
+def numbers_in(s):
+    return {float(x) for x in NUM_RE.findall(s or "")}
+
+
+def load_ledger(cfg, info, errors, warns):
+    """Validate 06_review/claims.tsv -> ({pid: set(numbers)}, {pid: set(derived numbers)}, {pid: n claims})."""
+    import csv
+    p = fp(cfg, "06_review", "claims.tsv")
+    if not os.path.exists(p):
+        return None
+    led = pd.read_csv(p, sep="\t", dtype=str, keep_default_na=False, encoding="utf-8-sig", quoting=csv.QUOTE_NONE)
+    need = {"claim_id", "paper_id", "evidence", "location", "statement", "numbers"}
+    if need - set(led.columns):
+        errors.append(f"claims.tsv is missing columns: {', '.join(sorted(need - set(led.columns)))}")
+        return None
+    direct, derived, n_claims = {}, {}, Counter()
+    ids = set(led["claim_id"])
+    for dup in sorted(led.loc[led["claim_id"].duplicated(), "claim_id"]):
+        errors.append(f"claims.tsv: duplicate claim_id {dup}")
+    for _, c in led.iterrows():
+        cid, ev, loc = c["claim_id"], c["evidence"].strip(), c["location"].strip()
+        pids = [x.strip() for x in re.split(r"[,;，\s]+", c["paper_id"]) if x.strip()]
+        if not c["statement"].strip() or not pids:
+            errors.append(f"claims.tsv {cid}: empty statement or paper_id")
+            continue
+        if ev not in ("fulltext", "abstract", "derived"):
+            errors.append(f"claims.tsv {cid}: evidence must be fulltext | abstract | derived, not '{ev}'")
+        nums = numbers_in(c["numbers"]) | numbers_in(c["statement"])
+        for pid in pids:
+            if pid not in info.index:
+                errors.append(f"claims.tsv {cid}: {pid} is not in papers_selected.csv")
+                continue
+            n_claims[pid] += 1
+            if ev == "fulltext":
+                if not bool(info.at[pid, "has_fulltext"]):
+                    errors.append(f"claims.tsv {cid}: evidence=fulltext but {pid} has no full text")
+                elif not os.path.exists(fp(cfg, "04_notes", f"{pid}.md")):
+                    errors.append(f"claims.tsv {cid}: evidence=fulltext but 04_notes/{pid}.md does not exist")
+            (derived if ev == "derived" else direct).setdefault(pid, set()).update(nums)
+        if ev == "fulltext" and not LOCATION_RE.search(loc):
+            errors.append(f"claims.tsv {cid}: full-text claim needs a location (Fig./Table/p./§), got '{loc}'")
+        if ev == "abstract" and loc.lower() not in ("abstract", "摘要"):
+            warns.append(f"claims.tsv {cid}: evidence=abstract but location is '{loc}'")
+        if ev == "derived":
+            src = [x for x in re.split(r"[,;，\s]+", loc) if x]
+            bad = [x for x in src if x not in ids]
+            if not src or bad:
+                errors.append(f"claims.tsv {cid}: derived claim must list its source claim_ids in location "
+                              f"(unknown: {', '.join(bad) or 'none given'})")
+    return direct, derived, n_claims
 
 
 def stage_check(args):
     cfg = load_project(args.project)
+    wcfg = {"require_ledger": True, "skip_headings": r"参考文献|References|附[:：录]|Appendix|致谢|Acknowledg",
+            **cfg.get("writing", {})}
     review = args.review
     if not review:
         mds = [p for p in glob.glob(fp(cfg, "06_review", "*.md"))
@@ -781,14 +933,16 @@ def stage_check(args):
     if "pub_type" not in sel.columns:
         sel["pub_type"] = [classify(d, v, "", cfg) for d, v in zip(sel["doi"], sel["venue"])]
     info = sel.set_index("id")
+    has_ft = lambda pid: pid in info.index and bool(info.at[pid, "has_fulltext"])
     errors, warns = [], []
 
+    # --- evidence base: IDs, ★ claims, images, grey literature, counts
     starred = set(re.findall(r"★\s*(P\d{3,4})\b", text))
     cited = set(ID_RE.findall(text))
     for pid in sorted(cited - set(info.index)):
         errors.append(f"{pid} is cited but not in papers_selected.csv")
     for pid in sorted(starred & set(info.index)):
-        if not bool(info.at[pid, "has_fulltext"]):
+        if not has_ft(pid):
             errors.append(f"★{pid} claims full-text reading, but there is no full text")
         if info.at[pid, "pub_type"] == "conference_abstract":
             errors.append(f"★{pid} is a conference abstract: there is no full paper to have read")
@@ -804,27 +958,90 @@ def stage_check(args):
                   if info.at[pid, "pub_type"] in ("conference_abstract", "preprint", "thesis"))
     if grey:
         warns.append(f"{len(grey)} cited items are not peer-reviewed articles (label them in the text): {', '.join(grey)}")
-
     stats_path = fp(cfg, "02_metadata", "stats.json")
+    actual = {"selected": len(sel), "fulltext": int(sel["has_fulltext"].sum()),
+              "abstract_only": int((~sel["has_fulltext"].astype(bool)).sum())}
     if os.path.exists(stats_path):
         st = json.load(open(stats_path, encoding="utf-8"))
-        known = {v for v in st.values() if isinstance(v, int)}
+        known = {v for v in st.values() if isinstance(v, int)} | set(actual.values())
         for k in ("tiers", "selected_by_type", "selected_by_tier"):
             known |= {v for v in st.get(k, {}).values() if isinstance(v, int)}
-        actual = {"selected": len(sel), "fulltext": int(sel["has_fulltext"].sum()),
-                  "abstract_only": int((~sel["has_fulltext"].astype(bool)).sum())}
-        known |= set(actual.values())
         for m in COUNT_RE.finditer(text):
             if int(m.group(1)) not in known:
                 ctx = text[max(0, m.start() - 25):m.end() + 5].replace("\n", " ")
                 warns.append(f"count '{m.group(0)}' matches no value in stats.json: …{ctx}…")
-        print("data:", actual)
 
-    print(f"checked {review}: {len(cited)} IDs cited, {len(starred)} marked ★")
+    # --- claims ledger
+    ledger = load_ledger(cfg, info, errors, warns)
+    if ledger is None and wcfg["require_ledger"]:
+        errors.append("no claims ledger 06_review/claims.tsv: every claim must be recorded there before writing")
+    direct, derived, n_claims = ledger or ({}, {}, Counter())
+    if ledger is not None:
+        for pid in sorted(cited & set(info.index)):
+            if not n_claims[pid]:
+                errors.append(f"{pid} is cited in the review but has no claim in claims.tsv")
+
+    # --- writing rules, unit by unit and sentence by sentence
+    skip_rx = re.compile(wcfg["skip_headings"], re.I)
+    body_ids, summary_ids = set(), {}
+    for section, unit, inherited in review_units(text, skip_rx):
+        own_ids = set(ID_RE.findall(unit))
+        unit_ids = own_ids or inherited
+        is_summary = bool(re.search(r"摘要|Abstract|结论|Conclusion", section, re.I))
+        if is_summary:
+            summary_ids.setdefault(section, set()).update(own_ids)
+        else:
+            body_ids |= own_ids
+        short = re.sub(r"\s+", " ", NO_CITE.sub("", unit))[:60]
+        if not unit_ids:
+            m = NO_CITE.search(unit)
+            if m:
+                warns.append(f"[{section}] uncited by declaration ({m.group(1)}): {short}…")
+            else:
+                errors.append(f"[{section}] paragraph has no citation (cite it or mark <!-- no-cite: reason -->): {short}…")
+        for sent in split_sentences(NO_CITE.sub("", unit)):
+            ids_s = set(ID_RE.findall(sent))
+            ctx_ids = ids_s or unit_ids
+            snippet = sent[:70]
+            if not ids_s and AUTHOR_YEAR.search(sent):
+                errors.append(f"[{section}] author-year citation without an evidence ID (outside the evidence base?): {snippet}")
+            if CONSENSUS.search(sent) and len(ids_s) < 2:
+                errors.append(f"[{section}] consensus wording needs >=2 cited studies in the same sentence: {snippet}")
+            if m := RISKY.search(sent):
+                warns.append(f"[{section}] overstated wording '{m.group(0)}': {snippet}")
+            if SIGNIF.search(sent) and not SIGNIF_OK.search(sent):
+                warns.append(f"[{section}] 'significant' used without a reported test: confirm the source tested it, or rephrase: {snippet}")
+            if CAUSAL.search(sent) and ctx_ids and not any(has_ft(p) for p in ctx_ids):
+                warns.append(f"[{section}] causal wording resting on abstracts only: {snippet}")
+            for q in QTY_RE.finditer(sent):
+                val = float(q.group(1))
+                if not ctx_ids:
+                    errors.append(f"[{section}] number '{q.group(0)}' has no citation: {snippet}")
+                    continue
+                if ledger is None:
+                    continue
+                if any(val in direct.get(p, ()) for p in ctx_ids):
+                    if not ids_s:
+                        warns.append(f"[{section}] number '{q.group(0)}' is cited only at paragraph level: {snippet}")
+                elif any(val in derived.get(p, ()) for p in ctx_ids):
+                    if not DERIVED_LABEL.search(sent):
+                        errors.append(f"[{section}] derived number '{q.group(0)}' must be labelled as this review's "
+                                      f"calculation (e.g. 本文据…计算): {snippet}")
+                else:
+                    errors.append(f"[{section}] number '{q.group(0)}' is not in the claims of {', '.join(sorted(ctx_ids))}: {snippet}")
+    for section, ids in summary_ids.items():
+        new = sorted(ids - body_ids)
+        if new:
+            errors.append(f"[{section}] cites evidence that the body never uses (no new claims in abstract/conclusions): {', '.join(new)}")
+
+    print("data:", actual)
+    print(f"checked {review}: {len(cited)} IDs cited, {len(starred)} marked ★, "
+          f"ledger {'present' if ledger is not None else 'missing'}")
     for e in errors:
         print("ERROR", e)
     for w in warns:
         print("WARN ", w)
+    print(f"{len(errors)} error(s), {len(warns)} warning(s)")
     sys.exit(1 if errors else 0)
 
 

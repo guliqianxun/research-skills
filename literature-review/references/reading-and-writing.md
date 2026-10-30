@@ -1,4 +1,4 @@
-# Reading notes, figures, writing and audit
+# Reading notes, figures, structure and export
 
 ## Reading notes (`04_notes/<ID>.md`)
 
@@ -49,19 +49,10 @@ Organise by question, not paper by paper. For a model-evaluation topic, the outl
 10. Conclusions.
 11. References (from `references_by_author.md`) and a reproducibility appendix.
 
-## Writing rules
+## Writing rules and audit
 
-- **Synthesise.** A paragraph should combine ≥2 sources or state why only one exists. Where papers
-  disagree, say so and explain the cause (method, period, model subset) if the notes show it.
-- **Hedge by evidence level.** Full-text findings (★) can be stated with numbers and figure references.
-  Abstract-only findings are reported as the authors' summary claims ("X et al. report…").
-- **Citation format**: `Priestley & Catto 2022（★P002）`, `Yang et al. 2021（P020）`. IDs make every claim
-  traceable to the CSV, the note and the figure.
-- **Grey literature**: mark preprints `（预印本）`/`(preprint)` at first citation; prefer the published version.
-  Conference abstracts are excluded by default; if one is kept for a unique result, label it and don't
-  build a conclusion on it alone.
-- **Numbers**: give units, period, season and reference dataset with every quantitative claim.
-- **Counts**: copy them from `stats.json` and rerun `check` after any change to the selected set.
+See `references/writing-protocol.md`: claims ledger, sentence and section rules, references outside the
+evidence base, and the audit loop. Follow it for every draft.
 
 ## Reproducibility appendix (always include)
 
@@ -70,17 +61,6 @@ Organise by question, not paper by paper. For a model-evaluation topic, the outl
   → full text / abstract only (all from `stats.json`).
 - Screening rubric (`screen/RUBRIC.md`) and who screened.
 - File map: CSVs, notes, figures, scripts.
-
-## Audit
-
-Run `check` and fix every error. Then read the draft once more against this list:
-
-- [ ] Every ★ paper has a note, and every number attributed to it is in the note.
-- [ ] No sentence relies only on a conference abstract.
-- [ ] Each figure caption names its source figure and the claim it supports.
-- [ ] Counts in the scope box, method text and reference header agree with `stats.json`.
-- [ ] Disagreements between papers are reported, not averaged away.
-- [ ] Limitations section names compensating errors and method dependence where the notes show them.
 
 ## Export
 

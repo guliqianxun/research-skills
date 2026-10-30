@@ -47,6 +47,9 @@ Order of operations, with the count recorded in `stats.json` at each step:
 7. **Stable IDs**: IDs from an existing `papers_raw.csv` are reused by DOI/title; new papers get the next
    free number. This is what keeps `tiers.tsv` and notes valid when you rerun.
 8. `papers_curated.csv` = anchor present, ≥1 core family, score ≥ `curated_min_score`.
+9. **Manual additions**: rows in `02_metadata/manual_additions.csv` (`doi, title, authors, year, venue, reason`)
+   are loaded as source `manual`, skip scoring and screening, and always enter the curated set. Use this only
+   for references the user approved (see `writing-protocol.md` W6); a row without a reason is refused.
 
 Tuning: look at the printed theme-tag distribution. If one core family dominates through a loose regex
 (e.g. `\bjet\b` catching every circulation paper), tighten it or move it to `context_tags`.
@@ -75,7 +78,8 @@ ID wins, which lets you re-tier by appending.
 2. Drop types in `select.exclude_types` (default: conference abstracts). The count of A/B papers dropped this
    way is printed and stored as `excluded_by_type_AB`; mention it in the method appendix.
 3. Take all A papers by (score, citations); if fewer than `target_min`, top up with the best B; cap at `max`.
-4. Preprints are kept and listed: search for a published version (journal DOI, same title) and swap it in
+4. Manual additions are appended with tier `M`, outside the `max` cap, and counted as `manual_additions`.
+5. Preprints are kept and listed: search for a published version (journal DOI, same title) and swap it in
    by adding the journal record, or note that none exists yet.
 
 ## download
@@ -111,13 +115,17 @@ are picked up by `extract` and `biblio` automatically.
 
 ## check
 
-Errors (exit code 1):
-- an ID cited in the review that is not in the selected set
-- `★` on a paper without full text, or on a conference abstract
-- an embedded image path that does not exist
+Audits a review draft against the evidence files and the claims ledger (`06_review/claims.tsv`). The full
+list of what is an error, what is a warning and what remains your responsibility is the last table of
+`writing-protocol.md`. Parsing conventions:
 
-Warnings:
-- selected papers never cited
-- full-text papers without notes
-- cited preprints/theses/abstracts (label them)
-- a number followed by `篇`/`papers`/`articles`/`studies` that matches no value in `stats.json`
+- Units that must carry a citation: paragraphs, list items, table data rows and captions. Headings, blockquotes
+  (the scope box), image lines and sections whose heading matches `writing.skip_headings` (default: references,
+  appendix, acknowledgements) are skipped.
+- List items inherit the IDs of a lead-in paragraph that ends with `：` or `:`.
+- `<!-- no-cite: reason -->` inside a paragraph declares it uncited on purpose; it is listed as a warning.
+- Numbers checked against the ledger are those followed by a unit, `%` or a count word (`hPa`, `°`, `K`, `km`,
+  `m s⁻¹`, `天`, `个`, `倍`, …). Years and bare numbers are not checked.
+- A sentence's IDs are used for its numbers; if the sentence has none, the unit's IDs are used and a warning asks
+  for sentence-level citation.
+- `writing.require_ledger: false` in `topic.json` turns the ledger requirement off (not recommended).

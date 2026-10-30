@@ -22,3 +22,10 @@ already built into `scripts/litreview.py` unless the row says otherwise.
 | Preprints cited although a journal version exists | No published-version check | `select` lists selected preprints; search by title and swap in the journal record |
 | Theme tag "hemisphere" on unrelated papers | `SH\b`/`NH\b` with case-insensitive matching also hits words ending in "sh"/"nh" (e.g. "fresh") | Keep it as a low-weight context tag, or use `\bSH\b` with a case-sensitive pattern via `(?-i:...)` |
 | Concept dominates the tag distribution | Over-broad regex (`\bjet\b`) | Tighten it or move it from `core_groups` to `context_tags` |
+| A number in the review has no source (e.g. "cyclone count −5% under SSP5-8.5" with no citation) | Written from memory or from a paper read earlier | Claims ledger; `check` fails numbers that are not in the ledger claims of the cited papers |
+| "研究表明 / 多项研究" backed by one paper | Wording stronger than the evidence | Evidence-strength table in `writing-protocol.md`; `check` fails consensus wording with <2 citations |
+| A classic reference cited from memory (wrong year, wrong title, or nonexistent) | Citation outside the evidence base | Manual additions with a verified DOI after user approval; `check` fails author–year citations without an ID |
+| Conclusions introduce a new paper or number | Summary written independently of the body | `check` fails IDs in abstract/conclusions that the body never cites |
+| "may" in the source became "会/将" in the review | Hedging lost in paraphrase or translation | Ledger statements keep the source's hedging; sentence rule 8 |
+| A percentage change appears that no paper reports | Reviewer computed it silently | Derived claims in the ledger; `check` requires the `本文据…计算` label |
+| Paper IDs change after adding one record, orphaning tiers | Unstable choice of the representative in near-duplicate groups | Deterministic sort; IDs matched by DOI, title key and other versions |

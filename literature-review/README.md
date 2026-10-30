@@ -13,10 +13,18 @@ When you ask the AI for a literature review, survey or core-paper list (文献�
   A/B/C tiers with reasons → core-set selection.
 - **Full-text work.** Open-access PDF download with license logging, a manual-fetch checklist for paywalled
   papers, full-text extraction with page markers, figure-page rendering and a caption index.
-- **Writing rules.** Per-paper reading notes with figure/table/page for every number, a review outline for
+- **Reading and structure.** Per-paper reading notes with figure/table/page for every number, a review outline for
   model-evaluation topics, ★/☆ evidence marking, and a reproducibility appendix.
-- **An audit step.** `check` fails the draft if a ★ claim has no full text, a cited ID is unknown, or an image
-  is missing. It warns on hand-typed counts that don't match the data.
+- **Strict writing.** Every finding goes into a claims ledger first (source, location, evidence level, numbers).
+  The draft may only use ledger claims, with wording matched to evidence strength. No citations from memory.
+- **An audit step.** `check` fails the draft on:
+  - uncited paragraphs
+  - numbers not found in the cited papers' claims
+  - unlabelled calculations
+  - consensus wording backed by one study
+  - author–year citations outside the evidence base
+  - new evidence in the abstract or conclusions
+  - ★ without full text
 
 ## Files
 
@@ -25,11 +33,12 @@ When you ask the AI for a literature review, survey or core-paper list (文献�
 | `SKILL.md` | Scoping, pipeline, screening, reading, writing, hard rules |
 | `scripts/litreview.py` | All stages: `init search curate batches select download extract biblio check` |
 | `references/pipeline.md` | Stage details, file formats, tuning |
-| `references/reading-and-writing.md` | Notes, figures, review structure, writing and audit rules, export |
+| `references/writing-protocol.md` | Strict writing rules: claims ledger, sentence and section rules, audit |
+| `references/reading-and-writing.md` | Reading notes, figures, review structure, export |
 | `references/failure-modes.md` | Symptom → cause → fix, from the first real run |
 | `references/example-cmip6-transient.md` | Worked example + primer on storm-track / transient-eddy diagnostics |
 | `templates/topic.example.json` | Config for the worked example |
-| `templates/paper_note.md`, `templates/review_outline.md` | Reading-note and review templates |
+| `templates/paper_note.md`, `templates/claims.tsv`, `templates/review_outline.md` | Reading-note, claims-ledger and review templates |
 
 ## Quick Start
 
