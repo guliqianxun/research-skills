@@ -1,0 +1,51 @@
+{
+  "topic": "CMIP6 simulation of synoptic-scale transient activity (storm tracks, extratropical cyclones, transient eddies)",
+  "language": "zh",
+  "anchor": "CMIP6",
+  "anchor_regex": "cmip6",
+  "year_min": 2016,
+  "sources": ["openalex", "crossref", "s2"],
+  "max_per_query": {"openalex": 1000, "crossref": 100, "s2": 100},
+  "crossref_types": ["journal-article"],
+
+  "concepts": [
+    "storm track", "storm-track", "transient eddy", "transient eddies",
+    "eddy kinetic energy", "bandpass filtered variance", "synoptic variability",
+    "baroclinic wave", "baroclinic eddies", "extratropical cyclone", "cyclone track",
+    "eddy heat flux", "eddy momentum flux", "Eady growth rate", "baroclinicity"
+  ],
+
+  "core_groups": {
+    "storm track": "storm[- ]?track",
+    "transient eddy": "transient edd",
+    "EKE": "eddy kinetic energy|\\bEKE\\b",
+    "bandpass variance": "band[- ]?pass|2[-–]6[- ]?day|synoptic.{0,15}variab",
+    "baroclinic": "baroclinic|eady",
+    "cyclone": "extratropical cyclone|cyclone track|cyclogenesis",
+    "eddy flux": "eddy (heat|momentum) flux|eddy flux",
+    "jet": "\\bjet\\b|jet stream"
+  },
+  "context_tags": {
+    "bias/climatology": "\\bbias|climatolog|evaluat|reproduc|systematic",
+    "vs CMIP5": "cmip5",
+    "resolution": "resolution|high[- ]?res|highresmip",
+    "future/scenario": "ssp|rcp|projection|future|warming|response",
+    "hemisphere": "southern hemisphere|northern hemisphere|austral|SH\\b|NH\\b"
+  },
+  "weights": {"anchor": 3, "core": 2, "context": 1},
+  "curated_min_score": 7,
+
+  "screen": {
+    "batch_size": 45,
+    "rubric": {
+      "A": "Directly evaluates or projects transient activity (storm track, cyclones, eddy fluxes/EKE, baroclinicity) using CMIP6 output.",
+      "B": "Uses CMIP6 and touches transient activity as a secondary diagnostic, or is a methods paper whose diagnostic is applied to CMIP6.",
+      "C": "Not about CMIP6 transient activity (other model ensembles, storm-resolving models only, regional precipitation only, mentions CMIP6 in passing)."
+    }
+  },
+
+  "select": {"target_min": 45, "max": 60, "exclude_types": ["conference_abstract"]},
+  "extract": {"dpi": 130, "max_pages_per_paper": 12},
+  "writing": {"require_ledger": true, "skip_headings": "参考文献|References|附[:：录]|Appendix|致谢|Acknowledg"},
+  "pub_type_rules": {}
+}
