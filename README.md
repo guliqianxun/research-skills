@@ -11,13 +11,14 @@ These skills work as **structured knowledge packs** for AI coding assistants. Th
 | [math-proof](./math-proof/) | Construct, verify, and communicate mathematical proofs for ML theory — convergence, generalization, diffusion models, flow matching, scaling laws |
 | [torch-model-design](./torch-model-design/) | PyTorch model design from zero to production — engineering principles, architecture patterns, distributed training, multimodal/temporal models, inference optimization |
 | [ai-research-manager](./ai-research-manager/) | Bold hypotheses, careful verification — experiment lifecycle with FSM governance, multi-agent teams, and audit trails |
+| [literature-review](./literature-review/) | Reproducible literature reviews — multi-database retrieval, dedupe, A/B/C screening, OA full text, reading notes, and an audited written review |
 
 ## Quick Start
 
 ### Prerequisites
 
 - An AI agent tool that supports custom instructions (Claude Code, Cursor, Cline, opencode, aider, Windsurf, etc.)
-- Python 3.10+ (for `ai-research-manager` validation script)
+- Python 3.10+ (for `ai-research-manager` validation script; `literature-review` needs pandas and requests, plus pymupdf for PDF extraction)
 
 ### Installation
 
@@ -95,15 +96,26 @@ A governance engine for AI-driven research that enforces auditable, reproducible
 
 [Read more](./ai-research-manager/)
 
+### literature-review
+
+A funnel from search to written review, with a file record at every step:
+
+- **Retrieval and curation**: OpenAlex + Crossref + Semantic Scholar, DOI/title dedupe, publication-type classification (journal / preprint / conference abstract / thesis), keyword relevance scoring
+- **Screening**: the AI tiers title + abstract batches into A/B/C with reasons; stable paper IDs survive reruns
+- **Full text**: open-access PDF retrieval with license logging, manual-fetch checklist, page-marked text and figure-page extraction
+- **Writing and audit**: reading-note and review templates, ★/☆ evidence marking, and a `check` stage that fails unsupported full-text claims, unknown citations and missing figures
+
+[Read more](./literature-review/)
+
 ## Compatibility
 
-| Tool | math-proof | torch-model-design | ai-research-manager |
-|------|:-:|:-:|:-:|
-| Claude Code (CLI/Desktop/Web) | Yes | Yes | Yes |
-| Cursor | Yes | Yes | Yes |
-| Cline | Yes | Yes | Yes |
-| Windsurf | Yes | Yes | Yes |
-| Other tools with custom instructions | Yes | Yes | Yes |
+| Tool | math-proof | torch-model-design | ai-research-manager | literature-review |
+|------|:-:|:-:|:-:|:-:|
+| Claude Code (CLI/Desktop/Web) | Yes | Yes | Yes | Yes |
+| Cursor | Yes | Yes | Yes | Yes |
+| Cline | Yes | Yes | Yes | Yes |
+| Windsurf | Yes | Yes | Yes | Yes |
+| Other tools with custom instructions | Yes | Yes | Yes | Yes |
 
 These skills are tool-agnostic — any AI assistant that can read markdown instructions and execute terminal commands can use them.
 
@@ -131,27 +143,41 @@ research-skills/
 │       ├── distributed-training.md
 │       ├── multimodal-temporal.md
 │       └── inference-deployment.md
-└── ai-research-manager/
+├── ai-research-manager/
+│   ├── README.md
+│   ├── SKILL.md
+│   ├── agents/
+│   │   ├── framer.md
+│   │   ├── planner.md
+│   │   ├── runner.md
+│   │   ├── evaluator.md
+│   │   └── analyst.md
+│   ├── references/
+│   │   ├── lifecycle.md
+│   │   └── tool-contracts.md
+│   ├── scripts/
+│   │   └── research_index.py
+│   └── templates/
+│       ├── RESEARCH_ROADMAP.md
+│       ├── STUDY.md
+│       ├── EVAL_REPORT.md
+│       ├── COMPARISON.md
+│       ├── CLAIM_MAP.md
+│       └── PAPER_DRAFT.md
+└── literature-review/
     ├── README.md
     ├── SKILL.md
-    ├── agents/
-    │   ├── framer.md
-    │   ├── planner.md
-    │   ├── runner.md
-    │   ├── evaluator.md
-    │   └── analyst.md
     ├── references/
-    │   ├── lifecycle.md
-    │   └── tool-contracts.md
+    │   ├── pipeline.md
+    │   ├── reading-and-writing.md
+    │   ├── failure-modes.md
+    │   └── example-cmip6-transient.md
     ├── scripts/
-    │   └── research_index.py
+    │   └── litreview.py
     └── templates/
-        ├── RESEARCH_ROADMAP.md
-        ├── STUDY.md
-        ├── EVAL_REPORT.md
-        ├── COMPARISON.md
-        ├── CLAIM_MAP.md
-        └── PAPER_DRAFT.md
+        ├── topic.example.json
+        ├── paper_note.md
+        └── review_outline.md
 ```
 
 ## Contributing
